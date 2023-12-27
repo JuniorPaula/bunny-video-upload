@@ -14,9 +14,9 @@ Simple `API` para upload de videos nos CDN´s do `Bunny`.
 `multipart/form-data`
 body
 
-file -> arquivo que sera feito o upload;
-title -> titulo do arquivo que sera salvo no cdn do bunny;
-collectionId -> ID da coleção "pasta" onde o arquivo será salvo;
+- file -> arquivo que sera feito o upload;
+- title -> titulo do arquivo que sera salvo no cdn do bunny;
+- collectionId -> ID da coleção "pasta" onde o arquivo será salvo;
 
 ```json
 {
