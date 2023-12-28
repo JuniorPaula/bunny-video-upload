@@ -4,11 +4,43 @@ import axios from 'axios';
 import multer from 'multer';
 
 const app = express();
+app.use(express.json());
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  next();
+});
+
 const PORT = 6969;
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+app.get('/get-video/:videoId', async (req, res) => {
+  const { videoId } = req.params;
+  const url = `${process.env.BUNNY_API_URL}/library/${process.env.VIDEO_LIBRARY_ID}/videos/${videoId}`;
+
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        AccessKey: process.env.ACCESS_KEY,
+      },
+    });
+
+    const { guid, title } = response.data;
+    const videoUrl = `${process.env.BUNNY_HLS_URL}/${guid}/playlist.m3u8`;
+
+    res.status(200).json({
+      title,
+      videoUrl,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar video:', error.message);
+    res.status(500).send('Erro ao buscar video');
+  }
+})
 
 app.post('/upload', upload.single('file'), async (req, res) => {
   const fileBuffer = req.file.buffer;
@@ -22,7 +54,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       throw new Error('Erro ao fazer upload');
     }
 
-    res.status(200).send('Upload concluído com sucesso!');
+    res.status(200).json({ msg: 'Upload concluído com sucesso!' });
   } catch (error) {
     console.error('Erro no upload:', error.message);
     res.status(500).send('Erro no upload');
@@ -33,7 +65,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 async function createVideoOnBunny(title, collectionId) {
   try {
     const options = {
-      url: `http://video.bunnycdn.com/library/${process.env.VIDEO_LIBRARY_ID}/videos`,
+      url: `${process.env.BUNNY_API_URL}/library/${process.env.VIDEO_LIBRARY_ID}/videos`,
       data: JSON.stringify({ title, collectionId }),
     };
   

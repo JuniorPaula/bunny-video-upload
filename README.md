@@ -2,7 +2,7 @@
 
 Simple `API` para upload de videos nos CDN´s do `Bunny`.
 
-## Start
+## Start Server
 ```bash 
   npm i
   npm run dev
@@ -24,4 +24,14 @@ body
   title: string,
   collectionId: string,
 }
+```
+
+## Frontend
+
+### Dependencia
+- python3
+
+## Start
+```bash
+python3 -m http.server
 ```
