@@ -2,6 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import axios from 'axios';
 import multer from 'multer';
+import tus from 'tus-js-client';
+
+import { createHash } from 'node:crypto'
 
 const app = express();
 app.use(express.json());
@@ -60,6 +63,59 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).send('Erro no upload');
   }
  
+})
+
+app.post('/tus-upload', upload.single('file'), async (req, res) => {
+  const fileBuffer = req.file.buffer;
+  const { title, collectionId } = req.body;
+  
+  try {
+    const videoId = await createVideoOnBunny(title);
+    
+    const PRESIGNED_REQUEST_SIGNATURE = 
+      createHash('sha256')
+      .update(`${process.env.VIDEO_LIBRARY_ID}${process.env.API_KEY}${new Date().setHours(24)}${videoId}`)
+      .digest('hex');
+
+    console.log(PRESIGNED_REQUEST_SIGNATURE);
+
+    const videoUpload = new tus.Upload(fileBuffer, {
+      endpoint: `${process.env.BUNNY_API_URL}/tusupload`,
+      retryDelays: [0, 1000, 3000, 5000],
+      metadata: {
+        filetype: req.file.mimetype,
+        title: title,
+      },
+      headers: {
+        AuthorizationSignature: PRESIGNED_REQUEST_SIGNATURE,
+        AuthorizationExpire: new Date().setHours(24),
+        VideoId: videoId,
+        LibraryId: process.env.VIDEO_LIBRARY_ID,
+      },
+      onError: (error) => {
+        console.error('Erro no upload:', error.message);
+        res.status(500).send('Erro no upload');
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(2);
+        console.log(`${bytesUploaded}/${bytesTotal} (${percentage}%)`);
+      },
+      onSuccess: () => {
+        res.status(200).json({ msg: 'Upload concluído com sucesso!' });
+      },
+    });
+
+    videoUpload.findPreviousUploads().then((previousUploads) => {
+      if (previousUploads.length) {
+        videoUpload.resumeFromPreviousUpload(previousUploads[0]);
+      }
+
+      videoUpload.start();
+    });
+  } catch (error) {
+    console.error('Erro no upload:', error.message);
+    res.status(500).send('Erro no upload');
+  }
 })
 
 async function createVideoOnBunny(title, collectionId) {
